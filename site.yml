@@ -1,0 +1,29 @@
+- hosts: testhosts
+  remote_user: root
+  sudo: True
+
+  vars:
+    lookup: widget
+
+# facter sometimes returns nothing or does not exist
+# the implied dependency here is being ignore by me for now
+# TODO : 4/2014 MConlin - if not present install facter
+#
+  tasks:
+  - name: run command and capture output
+    command: facter -p {{lookup}}
+    ignore_errors: yes
+    register: myout
+
+  - name: upload template file template.file to /etc/widgetfile
+    template: src=template.file.j2 dest=/etc/widgetfile
+
+  # if facter had a hit, update the file with the output
+  - name: replace line in file w results
+    lineinfile: dest=/etc/widgetfile regexp=^'widget_type X' line="widget_type {{myout.stdout}}"
+    when: myout.stdout is defined
+
+  # if facter failed, update with blank
+  - name: replace line in file w blank results
+    lineinfile: dest=/etc/widgetfile regexp=^'widget_type X' line="widget_type"
+    when: myout.stdout is not defined
